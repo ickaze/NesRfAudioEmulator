@@ -5,7 +5,7 @@
 #include "Settings.h"
 void AdjacentWindow::Show(HWND owner){
  if(window){ShowWindow(window,SW_RESTORE);SetForegroundWindow(window);return;}
- WNDCLASSW wc{};wc.hInstance=GetModuleHandleW(nullptr);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);static HBRUSH red=CreateSolidBrush(RGB(145,28,34));wc.hbrBackground=red;wc.lpfnWndProc=Proc;wc.lpszClassName=L"NesAdjacent";RegisterClassW(&wc);wc.lpfnWndProc=ViewProc;wc.lpszClassName=L"NesAdjacentView";RegisterClassW(&wc);
+ WNDCLASSW wc{};wc.hInstance=GetModuleHandleW(nullptr);wc.hIcon=LoadIconW(wc.hInstance,MAKEINTRESOURCEW(101));wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);static HBRUSH red=CreateSolidBrush(RGB(145,28,34));wc.hbrBackground=red;wc.lpfnWndProc=Proc;wc.lpszClassName=L"NesAdjacent";RegisterClassW(&wc);wc.lpfnWndProc=ViewProc;wc.lpszClassName=L"NesAdjacentView";RegisterClassW(&wc);
  window=CreateWindowExW(0,L"NesAdjacent",L"隣接チャンネル - 動画ファイル",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,720,690,owner,nullptr,wc.hInstance,this);
  if(window){closingApp=false;ShowWindow(window,SW_SHOW);RestorePlacement(window,ini,L"VideoWindow",720,440);
  filePath=ReadSetting(ini,L"Video",L"File");if(!filePath.empty()&&std::filesystem::is_regular_file(filePath))media.Open(filePath);

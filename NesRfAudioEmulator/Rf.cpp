@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#if defined(__SSE2__) || defined(_M_X64)
+#include <xmmintrin.h>
+#endif
 namespace {
 constexpr double Pi=3.14159265358979323846;
 float clamp(float v,float lo,float hi){return std::clamp(v,lo,hi);}
@@ -22,6 +25,11 @@ void RfProcessor::InitFir(){
 void RfProcessor::Process(const uint32_t* source,std::vector<float>& audio,double fps,const RfParams& p,const RfInterference* adjacent){
     if(!p.enabled){std::copy(source,source+Width*Height,output.begin());wasEnabled=false;return;}
     if(!wasEnabled){Reset();wasEnabled=true;}InitFir();
+    // Decaying receiver state can enter the subnormal range. Keep this local
+    // to RF processing so the emulator core's floating-point mode is unchanged.
+#if defined(__SSE2__) || defined(_M_X64)
+    struct FastFloatScope{unsigned saved=_mm_getcsr();FastFloatScope(){_mm_setcsr(saved|0x8040u);}~FastFloatScope(){_mm_setcsr(saved);}} fastFloat;
+#endif
     fps=std::clamp(fps,45.,65.);
     const int totalLines=fps<55?312:262;
     const double lineRate=fps*totalLines, sampleRate=lineRate*LineSamples;
@@ -34,13 +42,15 @@ void RfProcessor::Process(const uint32_t* source,std::vector<float>& audio,doubl
     status={0,0,0};
     const float c[6]={1,.5f,-.5f,-1,-.5f,.5f};
     const float s[6]={0,.8660254f,.8660254f,0,-.8660254f,-.8660254f};
+    const float recoveryAlpha=float(1.-std::exp(-1./(clamp(p.recovery,.0001f,.1f)*lineRate)));
     for(int line=0;line<totalLines;++line){
         // Telegraph-like contact losses followed by RC recovery; chance is per
         // second, so speed and audio chunk size do not change event frequency.
         if(contactTarget==0&&Random()<float((.2+contact*18)*contact/lineRate))contactTarget=.45f+.55f*Random();
         else if(contactTarget>0&&Random()<float(1./((.004+.06*contact)*lineRate)))contactTarget=0;
         if(contact==0){contactTarget=0;contactState=0;}
-        contactState+=(contactTarget-contactState)*float(1.-std::exp(-1./(clamp(p.recovery,.0001f,.1f)*lineRate)));
+        contactState+=(contactTarget-contactState)*recoveryAlpha;
+        if(contactTarget==0&&contactState<1e-20f)contactState=0;
         auto& state=lines[line];state.contact=contactState;
         state.gain=signal*(1-.98f*contactState)*std::exp(-2.f*detune*detune);
         state.sync=clamp((state.gain-.07f)/(noise*.7f+.38f),0,1);

@@ -35,7 +35,7 @@ int main(){try{
  std::cout<<"Brightness difference RMS (mix 0/0.5/1): "<<brightness[0]<<" / "<<brightness[1]<<" / "<<brightness[2]<<"\n";
  check(brightness[0]<1e-7&&brightness[1]>.005&&brightness[2]>brightness[1]*1.5,"brightness leakage control too weak or non-monotonic");
 
- RfProcessor loss;q=p;q.contact=1;q.noise=.2f;q.recovery=.001f;unsigned drops=0;double e=0;
+ RfProcessor loss;q=p;q.contact=1;q.noise=.2f;q.recovery=.0003f;unsigned drops=0;double e=0;
  auto start=std::chrono::steady_clock::now();
  for(int n=0;n<120;++n){a.assign(800,0);loss.Process(image.data(),a,60.0988,q);drops+=loss.GetStatus().dropoutLines;e+=energy(a);}
  check(drops>0&&e>.00001,"contact impairment not reflected in audio/status");

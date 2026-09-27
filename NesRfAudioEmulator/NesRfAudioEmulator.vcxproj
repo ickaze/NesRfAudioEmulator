@@ -59,13 +59,13 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\fceumm\src\drivers\libretro\libretro-common\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
+    <DebugInformationFormat>None</DebugInformationFormat></ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>mfplat.lib;mfreadwrite.lib;mfuuid.lib;dinput8.lib;dxguid.lib;shell32.lib;d3dcompiler.lib;d3d11.lib;dxgi.lib;xaudio2.lib;comctl32.lib;comdlg32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
+    <GenerateDebugInformation>false</GenerateDebugInformation><AdditionalOptions>%(AdditionalOptions) /DEBUG:NONE</AdditionalOptions></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -113,4 +113,4 @@
   <ItemGroup>
     <ClInclude Include="Settings.h" />
   </ItemGroup>
-</Project>
+<ItemGroup><ResourceCompile Include="App.rc" /><Image Include="assets\television.ico" /></ItemGroup></Project>

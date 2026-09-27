@@ -23,6 +23,8 @@ static float whineVolume=.15f,dischargeVolume=.25f;static TvState tv;static std:
 static RECT screenRect{};static constexpr int ControlCount=22;
 static HWND sliders[ControlCount]{},labels[ControlCount]{},modeBox=nullptr,presetBox=nullptr,rfStatus=nullptr;
 static std::wstring rfIni,lastRom;
+static bool fullscreen=false;static WINDOWPLACEMENT windowedPlacement{sizeof(WINDOWPLACEMENT)};static LONG_PTR windowedStyle=0;
+static bool cpuRendering=false;
 static int rfQueue=4,audioQueue=4;static bool immediateDisplay=false;
 static HMENU performanceMenu=nullptr,rfQueueMenu=nullptr,audioQueueMenu=nullptr;
 struct Control {const wchar_t* name;const wchar_t* key;float* value;float lo,hi,scale;const wchar_t* unit;};
@@ -50,7 +52,7 @@ static Control controls[]={
  {L"本体動作音",L"WhineVolume",&whineVolume,0,1,100,L"%"},
  {L"放電音",L"DischargeVolume",&dischargeVolume,0,1,100,L"%"}
 };
-enum{ID_OPEN=100,ID_EXIT,ID_INPUT,ID_RESET,ID_PAUSE,ID_MODE,ID_PRESET,ID_ADJACENT,ID_MIX=200,ID_PERF_NORMAL=300,ID_PERF_LOW,ID_PERF_IMMEDIATE,ID_RF_QUEUE=310,ID_AUDIO_QUEUE=320,ID_TIMER=1};
+enum{ID_OPEN=100,ID_EXIT,ID_INPUT,ID_RESET,ID_PAUSE,ID_MODE,ID_PRESET,ID_ADJACENT,ID_MIX=200,ID_FULLSCREEN=289,ID_RENDER_CPU=290,ID_RENDER_INFO,ID_PERF_NORMAL=300,ID_PERF_LOW,ID_PERF_IMMEDIATE,ID_RF_QUEUE=310,ID_AUDIO_QUEUE=320,ID_TIMER=1};
 using Clock=std::chrono::steady_clock;
 static auto nextFrame=Clock::now(),nextScan=Clock::now(),nextSave=Clock::now();
 static void ApplyPerformance(bool flush){
@@ -62,11 +64,24 @@ static void ApplyPerformance(bool flush){
  CheckMenuItem(performanceMenu,ID_PERF_NORMAL,MF_BYCOMMAND|((rfQueue==4&&audioQueue==4&&!immediateDisplay)?MF_CHECKED:MF_UNCHECKED));
  CheckMenuItem(performanceMenu,ID_PERF_LOW,MF_BYCOMMAND|((rfQueue==1&&audioQueue==2&&immediateDisplay)?MF_CHECKED:MF_UNCHECKED));
 }
+static void ToggleFullscreen(HWND h){
+ if(!fullscreen){
+  windowedPlacement.length=sizeof(windowedPlacement);if(!GetWindowPlacement(h,&windowedPlacement))return;
+  MONITORINFO monitor{sizeof(monitor)};if(!GetMonitorInfoW(MonitorFromWindow(h,MONITOR_DEFAULTTONEAREST),&monitor))return;
+  windowedStyle=GetWindowLongPtrW(h,GWL_STYLE);fullscreen=true;
+  SetWindowLongPtrW(h,GWL_STYLE,windowedStyle&~WS_OVERLAPPEDWINDOW);
+  SetWindowPos(h,nullptr,monitor.rcMonitor.left,monitor.rcMonitor.top,monitor.rcMonitor.right-monitor.rcMonitor.left,monitor.rcMonitor.bottom-monitor.rcMonitor.top,SWP_NOZORDER|SWP_NOOWNERZORDER|SWP_FRAMECHANGED);
+ }else{
+  fullscreen=false;SetWindowLongPtrW(h,GWL_STYLE,windowedStyle);SetWindowPlacement(h,&windowedPlacement);
+  SetWindowPos(h,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOOWNERZORDER|SWP_FRAMECHANGED);
+ }
+}
 static void UpdateLabels(){
  wchar_t text[160];for(int i=0;i<ControlCount;++i){auto& c=controls[i];swprintf_s(text,L"%.1f %s",double(*c.value*c.scale),c.unit);wchar_t old[160];GetWindowTextW(labels[i],old,160);if(std::wcscmp(old,c.name))SetWindowTextW(labels[i],c.name);GetWindowTextW(sliders[i],old,160);if(std::wcscmp(old,text))SetWindowTextW(sliders[i],text);EnableWindow(sliders[i],rf.enabled||i>=15);}
 }
 static void SaveRf(){
  if(rfIni.empty())return;
+ WritePrivateProfileStringW(L"Performance",L"CpuRendering",cpuRendering?L"1":L"0",rfIni.c_str());
  WritePrivateProfileStringW(L"Performance",L"RfQueue",std::to_wstring(rfQueue).c_str(),rfIni.c_str());
  WritePrivateProfileStringW(L"Performance",L"AudioQueue",std::to_wstring(audioQueue).c_str(),rfIni.c_str());
  WritePrivateProfileStringW(L"Performance",L"ImmediateDisplay",immediateDisplay?L"1":L"0",rfIni.c_str());
@@ -139,7 +154,7 @@ static LRESULT CALLBACK ViewProc(HWND h,UINT m,WPARAM w,LPARAM l){
 }
 static LRESULT CALLBACK MainProc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  case WM_CREATE:{
- mainWindow=h;HMENU menu=CreateMenu(),file=CreatePopupMenu(),settings=CreatePopupMenu();AppendMenuW(file,MF_STRING,ID_OPEN,L"Open ROM...\tCtrl+O");AppendMenuW(file,MF_STRING,ID_RESET,L"Reset\tF2");AppendMenuW(file,MF_STRING,ID_PAUSE,L"Pause\tSpace");AppendMenuW(file,MF_SEPARATOR,0,nullptr);AppendMenuW(file,MF_STRING,ID_EXIT,L"Exit");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(file),L"File");AppendMenuW(settings,MF_STRING,ID_INPUT,L"Controllers / Keys...\tF3");AppendMenuW(settings,MF_STRING,ID_ADJACENT,L"隣接チャンネルの動画...\tF4");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(settings),L"Settings");performanceMenu=CreatePopupMenu();rfQueueMenu=CreatePopupMenu();audioQueueMenu=CreatePopupMenu();
+ mainWindow=h;HMENU menu=CreateMenu(),file=CreatePopupMenu(),settings=CreatePopupMenu();AppendMenuW(file,MF_STRING,ID_OPEN,L"Open ROM...\tCtrl+O");AppendMenuW(file,MF_STRING,ID_RESET,L"Reset\tF2");AppendMenuW(file,MF_STRING,ID_PAUSE,L"Pause\tSpace");AppendMenuW(file,MF_SEPARATOR,0,nullptr);AppendMenuW(file,MF_STRING,ID_EXIT,L"Exit");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(file),L"File");AppendMenuW(settings,MF_STRING,ID_INPUT,L"Controllers / Keys...\tF3");AppendMenuW(settings,MF_STRING,ID_ADJACENT,L"隣接チャンネルの動画...\tF4");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(settings),L"Settings");AppendMenuW(settings,MF_STRING,ID_RENDER_CPU,L"ブラウン管演出をCPU処理に切り替え");AppendMenuW(settings,MF_STRING,ID_RENDER_INFO,L"描画情報（GPU / シェーダー）...");performanceMenu=CreatePopupMenu();rfQueueMenu=CreatePopupMenu();audioQueueMenu=CreatePopupMenu();
  AppendMenuW(performanceMenu,MF_STRING,ID_PERF_NORMAL,L"従来設定（初期値・安定動作優先）");
  AppendMenuW(performanceMenu,MF_STRING,ID_PERF_LOW,L"低遅延設定（v0.7.1相当）");AppendMenuW(performanceMenu,MF_SEPARATOR,0,nullptr);
  for(int i=1;i<=4;++i){auto name=std::to_wstring(i)+L" フレーム";AppendMenuW(rfQueueMenu,MF_STRING,ID_RF_QUEUE+i,name.c_str());}
@@ -166,9 +181,12 @@ static LRESULT CALLBACK MainProc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  rfQueue=std::clamp(int(GetPrivateProfileIntW(L"Performance",L"RfQueue",4,rfIni.c_str())),1,4);
  audioQueue=std::clamp(int(GetPrivateProfileIntW(L"Performance",L"AudioQueue",4,rfIni.c_str())),2,4);
  immediateDisplay=GetPrivateProfileIntW(L"Performance",L"ImmediateDisplay",0,rfIni.c_str())!=0;ApplyPerformance(false);input.Initialize(h,rfIni);adjacent.SetIni(rfIni);
- tv.on=GetPrivateProfileIntW(L"Session",L"Power",1,rfIni.c_str())!=0;SendMessageW(sliders[15],KNOB_POWER,tv.on,0);
+ tv.on=true;SendMessageW(sliders[15],KNOB_POWER,tv.on,0);
  auto logInit=[&](const std::wstring& text){std::ofstream f(dataDir/L"startup.log",std::ios::app|std::ios::binary);if(f){int n=WideCharToMultiByte(CP_UTF8,0,text.data(),int(text.size()),nullptr,0,nullptr,nullptr);std::string utf8(n,0);WideCharToMultiByte(CP_UTF8,0,text.data(),int(text.size()),utf8.data(),n,nullptr,nullptr);f<<utf8<<"\n";}};
  if(!renderer.Initialize(view)){logInit(renderer.Error());MessageBoxW(h,renderer.Error().c_str(),L"描画の初期化に失敗しました",MB_ICONERROR);return -1;}
+ cpuRendering=GetPrivateProfileIntW(L"Performance",L"CpuRendering",0,rfIni.c_str())!=0;renderer.SetCpu(cpuRendering);
+ CheckMenuItem(menu,ID_RENDER_CPU,MF_BYCOMMAND|(cpuRendering?MF_CHECKED:MF_UNCHECKED));
+ SetWindowTextW(rfStatus,renderer.ShortStatus().c_str());logInit(renderer.Status());
  if(!renderer.Notice().empty())logInit(renderer.Notice());
  if(!audio.Initialize()){logInit(audio.Error());MessageBoxW(h,audio.Error().c_str(),L"音声の初期化に失敗しました",MB_ICONERROR);return -1;}
  DragAcceptFiles(h,TRUE);SetTimer(h,ID_TIMER,5,nullptr);Layout(h);return 0;}
@@ -193,6 +211,9 @@ static LRESULT CALLBACK MainProc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
   ApplyPerformance(true);SaveRf();SetFocus(h);return 0;
  }
  switch(LOWORD(w)){
+ case ID_FULLSCREEN:ToggleFullscreen(h);break;
+ case ID_RENDER_CPU:cpuRendering=!cpuRendering;renderer.SetCpu(cpuRendering);CheckMenuItem(GetMenu(h),ID_RENDER_CPU,MF_BYCOMMAND|(cpuRendering?MF_CHECKED:MF_UNCHECKED));SetWindowTextW(rfStatus,renderer.ShortStatus().c_str());SaveRf();break;
+ case ID_RENDER_INFO:MessageBoxW(h,(renderer.Status()+L"\n\nCPU切替はブラウン管演出のみです。RF合成は常にCPU、画面転送はD3D11です。\n"+renderer.Notice()).c_str(),L"描画情報",MB_OK);break;
  case ID_MODE:if(HIWORD(w)==CBN_SELCHANGE){rf.enabled=SendMessageW(modeBox,CB_GETCURSEL,0,0)==1;UpdateLabels();SaveRf();worker.Flush();audio.Clear();SetFocus(h);}break;
  case ID_PRESET:if(HIWORD(w)==CBN_SELCHANGE){Preset(int(SendMessageW(presetBox,CB_GETCURSEL,0,0))-1);SetFocus(h);}break;
  case ID_OPEN:OpenRom();break;case ID_RESET:worker.Flush();audio.Clear();nes.Reset();nextFrame=Clock::now();break;
@@ -218,7 +239,7 @@ static LRESULT CALLBACK MainProc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  if(!nes.Loaded()){int count=0;while(now>=nextFrame&&count++<2){adjacent.Segment(800);nextFrame+=std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1./60.));}if(now-nextFrame>std::chrono::milliseconds(100))nextFrame=now;refreshPicture();return 0;}
  RfResult result;bool present=false;
  while(audio.CanSubmit()&&worker.Take(result)){audio.Submit(result.audio);present=true;}
- if(present){std::copy(result.video.begin(),result.video.end(),lastPicture.begin());if(immediateDisplay){renderer.SetTv(tv);renderer.Present(lastPicture.data());lastPresent=Clock::now();}wchar_t text[240];swprintf_s(text,L"RFワーカー %.1f ms / 待機 %uフレーム\n%s / 信号 %.0f%% / 推定同期 %.0f%%",result.milliseconds,unsigned(worker.Pending()),rf.enabled?L"RF出力":L"デジタル出力",double(result.status.signal*100),double(result.status.sync*100));SetWindowTextW(rfStatus,text);}
+ if(present){std::copy(result.video.begin(),result.video.end(),lastPicture.begin());if(immediateDisplay){renderer.SetTv(tv);renderer.Present(lastPicture.data());lastPresent=Clock::now();}wchar_t text[240];swprintf_s(text,L"RFワーカー %.1f ms / 待機 %uフレーム\n%s / 信号 %.0f%% / 推定同期 %.0f%%",result.milliseconds,unsigned(worker.Pending()),rf.enabled?L"RF出力":L"デジタル出力",double(result.status.signal*100),double(result.status.sync*100));SetWindowTextW(rfStatus,(renderer.ShortStatus()+L"\n"+std::wstring(text).substr(0,std::wstring(text).find(L'\n'))).c_str());}
  if(immediateDisplay&&!present)refreshPicture();
  int count=0;while(now>=nextFrame&&count<2&&worker.CanSubmit()){
   RfJob job;nes.RunRawFrame(job.audio);std::copy(nes.DigitalFrame(),nes.DigitalFrame()+job.video.size(),job.video.begin());job.params=rf;job.fps=nes.Fps();job.adjacent=adjacent.Segment(job.audio.size());worker.Submit(std::move(job));
@@ -228,15 +249,34 @@ static LRESULT CALLBACK MainProc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  // than grow latency forever or drop arbitrary audio chunks.
  if(now-nextFrame>std::chrono::milliseconds(100))nextFrame=now;
  if(now>=nextSave){if(!nes.SaveRam())SetWindowTextW(h,L"NES RF Audio Emulator - Save failed (ROM folder not writable)");nextSave=now+std::chrono::seconds(30);}return 0;}
- case WM_CLOSE:if(!nes.SaveRam()&&MessageBoxW(h,L"セーブを保存できませんでした。保存せず終了しますか？",L"Save failed",MB_YESNO|MB_ICONWARNING)!=IDYES)return 0;SavePlacement(h,rfIni,L"Window");adjacent.Close();DestroyWindow(h);return 0;
+ case WM_CLOSE:if(!nes.SaveRam()&&MessageBoxW(h,L"セーブを保存できませんでした。保存せず終了しますか？",L"Save failed",MB_YESNO|MB_ICONWARNING)!=IDYES)return 0;if(fullscreen)ToggleFullscreen(h);SavePlacement(h,rfIni,L"Window");adjacent.Close();DestroyWindow(h);return 0;
  case WM_DESTROY:SavePlacement(h,rfIni,L"Window");SaveRf();KillTimer(h,ID_TIMER);worker.Stop();adjacent.Close();input.Shutdown();nes.Shutdown();audio.Shutdown();renderer.Shutdown();PostQuitMessage(0);return 0;
  }return DefWindowProcW(h,m,w,l);}
 int WINAPI wWinMain(HINSTANCE hi,HINSTANCE,LPWSTR,int show){
  SetProcessDPIAware();INITCOMMONCONTROLSEX ic{sizeof(ic),ICC_BAR_CLASSES};InitCommonControlsEx(&ic);
  WNDCLASSEXW vc{};vc.cbSize=sizeof(vc);vc.lpfnWndProc=ViewProc;vc.hInstance=hi;vc.lpszClassName=L"NesView";vc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassExW(&vc);RegisterKnob();
- WNDCLASSEXW wc{};wc.cbSize=sizeof(wc);wc.lpfnWndProc=MainProc;wc.hInstance=hi;wc.lpszClassName=L"NesRfMain";wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_BTNFACE+1);wc.hIcon=LoadIconW(nullptr,IDI_APPLICATION);RegisterClassExW(&wc);
+ WNDCLASSEXW wc{};wc.cbSize=sizeof(wc);wc.lpfnWndProc=MainProc;wc.hInstance=hi;wc.lpszClassName=L"NesRfMain";wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_BTNFACE+1);wc.hIcon=LoadIconW(hi,MAKEINTRESOURCEW(101));wc.hIconSm=reinterpret_cast<HICON>(LoadImageW(hi,MAKEINTRESOURCEW(101),IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR));RegisterClassExW(&wc);
  HWND h=CreateWindowExW(0,wc.lpszClassName,L"NES RF Audio Emulator",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1400,940,nullptr,nullptr,hi,nullptr);
  if(!h){worker.Stop();adjacent.Close();input.Shutdown();nes.Shutdown();audio.Shutdown();renderer.Shutdown();return 1;}ShowWindow(h,show);RestorePlacement(h,rfIni,L"Window",1120,860);UpdateWindow(h);PostMessageW(h,WM_APP+90,0,0);
- ACCEL keys[]={{FVIRTKEY|FCONTROL,'O',ID_OPEN},{FVIRTKEY,VK_F2,ID_RESET},{FVIRTKEY,VK_F3,ID_INPUT},{FVIRTKEY,VK_F4,ID_ADJACENT},{FVIRTKEY,VK_SPACE,ID_PAUSE}};HACCEL accel=CreateAcceleratorTableW(keys,5);
- MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){if((msg.message==WM_KEYDOWN&&input.MappedKey(int(msg.wParam)))||!TranslateAcceleratorW(h,accel,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}DestroyAcceleratorTable(accel);return int(msg.wParam);
+ ACCEL keys[]={{FVIRTKEY|FALT,VK_RETURN,ID_FULLSCREEN},{FVIRTKEY|FCONTROL,'O',ID_OPEN},{FVIRTKEY,VK_F2,ID_RESET},{FVIRTKEY,VK_F3,ID_INPUT},{FVIRTKEY,VK_F4,ID_ADJACENT},{FVIRTKEY,VK_SPACE,ID_PAUSE}};HACCEL accel=CreateAcceleratorTableW(keys,6);
+ // Use a waitable timer: WM_TIMER is low priority and has a minimum interval.
+ HMODULE multimedia=LoadLibraryW(L"winmm.dll");using Period=UINT(WINAPI*)(UINT);
+ auto begin=multimedia?reinterpret_cast<Period>(GetProcAddress(multimedia,"timeBeginPeriod")):nullptr;
+ auto end=multimedia?reinterpret_cast<Period>(GetProcAddress(multimedia,"timeEndPeriod")):nullptr;
+ bool raised=begin&&end&&begin(1)==0;
+ HANDLE ticker=CreateWaitableTimerW(nullptr,FALSE,nullptr);LARGE_INTEGER due;due.QuadPart=-50000;
+ if(ticker&&!SetWaitableTimer(ticker,&due,5,nullptr,nullptr,FALSE)){CloseHandle(ticker);ticker=nullptr;}
+ if(ticker)KillTimer(h,ID_TIMER);
+ MSG msg{};bool quit=false;
+ while(!quit){
+  DWORD ready=MsgWaitForMultipleObjectsEx(ticker?1:0,ticker?&ticker:nullptr,INFINITE,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
+  if(ready==WAIT_FAILED)break;
+  if(ticker&&ready==WAIT_OBJECT_0)SendMessageW(h,WM_TIMER,ID_TIMER,0);
+  for(int n=0;n<64&&PeekMessageW(&msg,nullptr,0,0,PM_REMOVE);++n){
+   if(msg.message==WM_QUIT){quit=true;break;}
+   if((msg.message==WM_KEYDOWN&&input.MappedKey(int(msg.wParam)))||!TranslateAcceleratorW(h,accel,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}
+  }
+ }
+ if(ticker){CancelWaitableTimer(ticker);CloseHandle(ticker);}if(raised)end(1);if(multimedia)FreeLibrary(multimedia);
+ DestroyAcceleratorTable(accel);return int(msg.wParam);
 }

@@ -19,10 +19,10 @@ public:
   release*=on?.998f:.999975f;
   whineGain+=(whine-whineGain)*.002f;staticGain+=(discharge-staticGain)*.002f;
   phase+=6.283185307179586*Frequency()/48000.;if(phase>6.283185307179586)phase-=6.283185307179586;
-  float n=Noise();if(!on&&release>.0001f&&Noise()>1-release*.002f)pop+=release*(.3f+.2f*Noise());
-  pop*=.985f;float high=n-previousNoise;previousNoise=n;
+  float n=Noise();if(!on&&release>.0001f&&Noise()>1-release*.00016f)pop=std::min(1.f,pop+release*(.65f+.25f*Noise()));
+  pop*=.994f;float high=n-previousNoise;previousNoise=n;
   lastTone=.012f*whineGain*drive*float(std::sin(phase));
-  return lastTone+.07f*staticGain*(pop*high+release*.12f*n);
+  return lastTone+.42f*staticGain*(pop*high+release*.20f*n);
  }
  std::array<float,2> Stereo(bool on,float whine,float discharge,float deflection){
   float mono=Sample(on,whine,discharge,deflection),noise=mono-lastTone;

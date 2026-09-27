@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(NesRfAudioEmulator VERSION 0.7.0 LANGUAGES C CXX)
+project(NesRfAudioEmulator VERSION 0.7.8 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(NES_CORE_TESTS_ONLY "Build portable core integration tests without Windows UI" OFF)
@@ -43,6 +43,7 @@ if(NOT WIN32 OR NOT MSVC)
  message(FATAL_ERROR "Build the application with Visual Studio 2022 on Windows.")
 endif()
 add_executable(NesRfAudioEmulator WIN32
+ NesRfAudioEmulator/App.rc
  NesRfAudioEmulator/main.cpp NesRfAudioEmulator/Nes.cpp
  NesRfAudioEmulator/Audio.cpp NesRfAudioEmulator/Renderer.cpp NesRfAudioEmulator/Input.cpp
  NesRfAudioEmulator/Rf.cpp NesRfAudioEmulator/Rf.h
@@ -56,3 +57,6 @@ add_executable(NesRfAudioEmulator WIN32
 target_compile_definitions(NesRfAudioEmulator PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_compile_options(NesRfAudioEmulator PRIVATE /W4 /permissive- /sdl /utf-8)
 target_link_libraries(NesRfAudioEmulator PRIVATE fceumm d3d11 dxgi d3dcompiler xaudio2 comctl32 comdlg32 ole32 shell32 dinput8 dxguid mfplat mfreadwrite mfuuid)
+
+# Release binaries must not carry a CodeView/PDB build-machine path.
+target_link_options(NesRfAudioEmulator PRIVATE "$<$<CONFIG:Release>:/DEBUG:NONE>")
