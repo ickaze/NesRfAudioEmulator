@@ -1,0 +1,58 @@
+cmake_minimum_required(VERSION 3.21)
+project(NesRfAudioEmulator VERSION 0.7.0 LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(NES_CORE_TESTS_ONLY "Build portable core integration tests without Windows UI" OFF)
+add_subdirectory(third_party)
+if(NES_CORE_TESTS_ONLY)
+ enable_testing()
+ add_executable(tv_stereo_tests tests/tv_stereo_tests.cpp)
+ target_include_directories(tv_stereo_tests PRIVATE NesRfAudioEmulator)
+ add_test(NAME tv_stereo COMMAND tv_stereo_tests)
+ add_executable(tv_sweep_tests tests/tv_sweep_tests.cpp)
+ target_include_directories(tv_sweep_tests PRIVATE NesRfAudioEmulator)
+ add_test(NAME tv_sweep COMMAND tv_sweep_tests)
+ add_executable(crt_cpu_tests tests/crt_cpu_tests.cpp)
+ target_include_directories(crt_cpu_tests PRIVATE NesRfAudioEmulator)
+ add_test(NAME crt_cpu_fallback COMMAND crt_cpu_tests)
+ add_executable(tv_tests tests/tv_tests.cpp)
+ target_include_directories(tv_tests PRIVATE NesRfAudioEmulator)
+ add_test(NAME television_power COMMAND tv_tests)
+ add_executable(core_tests tests/core_tests.cpp NesRfAudioEmulator/Nes.cpp NesRfAudioEmulator/Rf.cpp)
+ target_include_directories(core_tests PRIVATE NesRfAudioEmulator)
+ target_link_libraries(core_tests PRIVATE fceumm)
+ if(MSVC)
+  target_compile_options(core_tests PRIVATE /utf-8)
+ endif()
+ add_test(NAME core_integration COMMAND core_tests)
+ add_executable(rf_tests tests/rf_tests.cpp NesRfAudioEmulator/Rf.cpp)
+ target_include_directories(rf_tests PRIVATE NesRfAudioEmulator)
+ add_test(NAME rf_receiver COMMAND rf_tests)
+ find_package(Threads REQUIRED)
+ add_executable(worker_tests tests/worker_tests.cpp NesRfAudioEmulator/RfWorker.cpp NesRfAudioEmulator/Rf.cpp)
+ target_include_directories(worker_tests PRIVATE NesRfAudioEmulator)
+ target_link_libraries(worker_tests PRIVATE Threads::Threads)
+ add_test(NAME rf_worker COMMAND worker_tests)
+ if(MSVC)
+  target_link_options(rf_tests PRIVATE /STACK:16777216)
+  target_link_options(core_tests PRIVATE /STACK:16777216)
+ endif()
+ return()
+endif()
+if(NOT WIN32 OR NOT MSVC)
+ message(FATAL_ERROR "Build the application with Visual Studio 2022 on Windows.")
+endif()
+add_executable(NesRfAudioEmulator WIN32
+ NesRfAudioEmulator/main.cpp NesRfAudioEmulator/Nes.cpp
+ NesRfAudioEmulator/Audio.cpp NesRfAudioEmulator/Renderer.cpp NesRfAudioEmulator/Input.cpp
+ NesRfAudioEmulator/Rf.cpp NesRfAudioEmulator/Rf.h
+ NesRfAudioEmulator/RfWorker.cpp NesRfAudioEmulator/RfWorker.h
+ NesRfAudioEmulator/MediaSource.cpp NesRfAudioEmulator/MediaSource.h
+ NesRfAudioEmulator/AdjacentWindow.cpp NesRfAudioEmulator/AdjacentWindow.h
+ NesRfAudioEmulator/Settings.h NesRfAudioEmulator/TvSound.h NesRfAudioEmulator/InitError.h NesRfAudioEmulator/CrtCpu.h
+ NesRfAudioEmulator/Knob.h NesRfAudioEmulator/TvState.h
+ NesRfAudioEmulator/Common.h NesRfAudioEmulator/Nes.h NesRfAudioEmulator/Audio.h
+ NesRfAudioEmulator/Renderer.h NesRfAudioEmulator/Input.h)
+target_compile_definitions(NesRfAudioEmulator PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_options(NesRfAudioEmulator PRIVATE /W4 /permissive- /sdl /utf-8)
+target_link_libraries(NesRfAudioEmulator PRIVATE fceumm d3d11 dxgi d3dcompiler xaudio2 comctl32 comdlg32 ole32 shell32 dinput8 dxguid mfplat mfreadwrite mfuuid)

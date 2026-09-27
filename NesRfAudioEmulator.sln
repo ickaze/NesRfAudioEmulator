@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "NesRfAudioEmulator", "NesRfAudioEmulator\NesRfAudioEmulator.vcxproj", "{A1B9B15F-2B70-4DB1-8A10-BD30D6C4A61A}"
+EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "fceumm", "third_party\fceumm.vcxproj", "{E03C8BC4-7D30-4E13-80DE-42BFBE6C9FC1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E03C8BC4-7D30-4E13-80DE-42BFBE6C9FC1}.Debug|x64.ActiveCfg = Debug|x64
+		{E03C8BC4-7D30-4E13-80DE-42BFBE6C9FC1}.Debug|x64.Build.0 = Debug|x64
+		{E03C8BC4-7D30-4E13-80DE-42BFBE6C9FC1}.Release|x64.ActiveCfg = Release|x64
+		{E03C8BC4-7D30-4E13-80DE-42BFBE6C9FC1}.Release|x64.Build.0 = Release|x64
+		{A1B9B15F-2B70-4DB1-8A10-BD30D6C4A61A}.Debug|x64.ActiveCfg = Debug|x64
+		{A1B9B15F-2B70-4DB1-8A10-BD30D6C4A61A}.Debug|x64.Build.0 = Debug|x64
+		{A1B9B15F-2B70-4DB1-8A10-BD30D6C4A61A}.Release|x64.ActiveCfg = Release|x64
+		{A1B9B15F-2B70-4DB1-8A10-BD30D6C4A61A}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+EndGlobal

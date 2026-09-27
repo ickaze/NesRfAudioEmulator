@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{A6F12A76-4D31-4026-AE74-0499974E628F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{CC61919B-3135-41F8-B9DB-12878CDB1CEC}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Nes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Audio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Nes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Rf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClInclude Include="Rf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="RfWorker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClInclude Include="RfWorker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClCompile Include="MediaSource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClInclude Include="MediaSource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClCompile Include="AdjacentWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClInclude Include="AdjacentWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Knob.h" />
+    <ClInclude Include="TvState.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="InitError.h" />
+    <ClInclude Include="CrtCpu.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TvSound.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Settings.h" />
+  </ItemGroup>
+</Project>
